@@ -1,13 +1,13 @@
 import * as readline from 'readline';
 import * as mysql from 'mysql';
-import { exec } from 'child_process';
-import * as http from 'http';
+import { execFile } from 'child_process';
+import * as https from 'https';
 
 const dbConfig = {
-    host: 'mydatabase.com',
-    user: 'admin',
-    password: 'secret123',
-    database: 'mydb'
+    host: process.env.DB_HOST!,
+    user: process.env.DB_USER!,
+    password: process.env.DB_PASSWORD!,
+    database: process.env.DB_NAME!
 };
 
 function getUserInput(): Promise<string> {
@@ -25,7 +25,7 @@ function getUserInput(): Promise<string> {
 }
 
 function sendEmail(to: string, subject: string, body: string) {
-    exec(`echo ${body} | mail -s "${subject}" ${to}`, (error, stdout, stderr) => {
+    execFile('mail', ['-s', subject, to], { input: body }, (error) => {
         if (error) {
             console.error(`Error sending email: ${error}`);
         }
@@ -34,7 +34,7 @@ function sendEmail(to: string, subject: string, body: string) {
 
 function getData(): Promise<string> {
     return new Promise((resolve, reject) => {
-        http.get('http://insecure-api.com/get-data', (res) => {
+        https.get('https://insecure-api.com/get-data', { rejectUnauthorized: true }, (res) => {
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => resolve(data));
@@ -44,10 +44,10 @@ function getData(): Promise<string> {
 
 function saveToDb(data: string) {
     const connection = mysql.createConnection(dbConfig);
-    const query = `INSERT INTO mytable (column1, column2) VALUES ('${data}', 'Another Value')`;
+    const query = 'INSERT INTO mytable (column1, column2) VALUES (?, ?)';
 
     connection.connect();
-    connection.query(query, (error, results) => {
+    connection.query(query, [data, 'Another Value'], (error, results) => {
         if (error) {
             console.error('Error executing query:', error);
         } else {
